@@ -1,0 +1,93 @@
+{% extends "subscriptions/base.html" %}
+{% block title %}{{ customer.name }}{% endblock %}
+{% block content %}
+
+<section class="card">
+    <h2>{{ customer.name }}</h2>
+    <p class="muted">{{ customer.phone }} &middot; {{ customer.address|default:"No address on file" }}</p>
+    <a href="{% url 'subscriptions:subscribe' customer.pk %}" class="btn btn-small">+ New Subscription</a>
+</section>
+
+{% for sub in subscriptions %}
+<section class="card sub-card">
+    <div class="sub-header">
+        <div>
+            <h3>{{ sub.plan.name }} <span class="badge badge-{{ sub.current_display_status }}">{{ sub.current_display_status }}</span></h3>
+            <p class="muted">Rs.{{ sub.plan.price_per_month }}/month &middot; since {{ sub.start_date }}</p>
+        </div>
+        <div class="sub-actions">
+            {% if sub.current_display_status == "active" %}
+                <a href="{% url 'subscriptions:pause' sub.pk %}" class="btn btn-small btn-warn">Pause</a>
+            {% endif %}
+            <a href="{% url 'subscriptions:generate_bill' sub.pk %}" class="btn btn-small">Generate Bill</a>
+            <a href="{% url 'subscriptions:transfer_form' sub.pk %}" class="btn btn-small">Transfer</a>
+        </div>
+    </div>
+
+    {% if sub.transfers.all %}
+    <details>
+        <summary>Transfer history ({{ sub.transfers.count }})</summary>
+        <table class="data-table">
+            <thead><tr><th>Date</th><th>From</th><th>To</th></tr></thead>
+            <tbody>
+            {% for t in sub.transfers.all %}
+                <tr>
+                    <td>{{ t.transfer_date }}</td>
+                    <td>{{ t.from_customer.name }}</td>
+                    <td>{{ t.to_customer.name }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </details>
+    {% endif %}
+
+    <details>
+        <summary>Pause history ({{ sub.pauses.count }})</summary>
+        {% if sub.pauses.all %}
+        <table class="data-table">
+            <thead><tr><th>From</th><th>To</th><th>Reason</th><th></th></tr></thead>
+            <tbody>
+            {% for pause in sub.pauses.all %}
+                <tr>
+                    <td>{{ pause.start_date }}</td>
+                    <td>{{ pause.end_date|default:"ongoing" }}</td>
+                    <td>{{ pause.reason|default:"-" }}</td>
+                    <td>
+                        {% if not pause.end_date or pause.end_date >= today %}
+                        <a href="{% url 'subscriptions:resume' pause.pk %}">Resume</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p class="empty">No pauses recorded.</p>
+        {% endif %}
+    </details>
+
+    <details>
+        <summary>Bills ({{ sub.bills.count }})</summary>
+        {% if sub.bills.all %}
+        <table class="data-table">
+            <thead><tr><th>Month</th><th>Delivered / Possible days</th><th>Rate/day</th><th>Amount</th></tr></thead>
+            <tbody>
+            {% for bill in sub.bills.all %}
+                <tr>
+                    <td>{{ bill.month }}/{{ bill.year }}</td>
+                    <td>{{ bill.delivered_days }} / {{ bill.total_days }}</td>
+                    <td>Rs.{{ bill.per_day_rate }}</td>
+                    <td><strong>Rs.{{ bill.amount }}</strong></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p class="empty">No bills generated yet.</p>
+        {% endif %}
+    </details>
+</section>
+{% endfor %}
+
+{% endblock %}

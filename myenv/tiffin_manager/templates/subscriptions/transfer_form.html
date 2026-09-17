@@ -1,0 +1,20 @@
+{% extends "subscriptions/base.html" %}
+{% block title %}Transfer subscription{% endblock %}
+{% block content %}
+<section class="card form-card">
+    <h2>Transfer {{ subscription.customer.name }}'s {{ subscription.plan.name }}</h2>
+    <p class="muted">Plan and billing cycle carry over. From the transfer date onward, the new customer is billed for delivered days; days before that stay on the current customer's bill.</p>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn">Transfer subscription</button>
+    </form>
+</section>
+{% endblock %}
