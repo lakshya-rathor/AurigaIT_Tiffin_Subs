@@ -4,13 +4,82 @@ Build the tiffin owner something so every customer is billed only for the days t
 (Build it for any tiffin service. Get subscribe, pause/resume and the pro-rated bill right first, then the lookups.)
 
 
-How I tried to solve the problem
-First I create a repository on GitHub "AurigalIT_Tiffin_Subs" and clone it in my VS Code IDE.
+# AurigaIT Tiffin Subscription System
 
-Then I create a branch name "first".
+A Django-based Tiffin Subscription Management System developed for managing customers, subscriptions, billing, and subscription pause/resume operations from an admin interface.
 
-Now I established a python virtual environment using
->> python -m venv myenv
-and run.
+## Features
 
+- Customer management
+- Customer details and registration
+- Tiffin subscription management
+- Subscription activation
+- Subscription pause functionality
+- Subscription resume functionality
+- Bill generation
+- Admin dashboard
+- Django-based backend and web interface
+- SQLite database for development
 
+## Technology Stack
+
+- Python
+- Django
+- HTML
+- CSS
+- JavaScript
+- SQLite
+- Git & GitHub
+
+## Project Structure
+
+```text
+AurigaIT_Tiffin_Subs/
+│
+├── manage.py
+├── README.md
+├── REASONING.md
+├── AI_LOGS.md
+│
+├── tiffin_manager/
+│   ├── settings.py
+│   ├── urls.py
+│   ├── views.py
+│   └── ...
+│
+├── templates/
+│   └── ...
+│
+└── ...
+```
+
+Requirements
+Python 3.x
+pip
+Django
+Git
+
+# Setup 
+Run each line one by one
+```text
+git clone https://github.com/lakshya-rathor/AurigaIT_Tiffin_Subs.git
+cd AurigaIT_Tiffin_Subs
+python -m venv myenv
+myenv\Scripts\activate
+pip install django
+pip install -r requirements.txt
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+```
+```text
+python manage.py runserver
+```
+Website will be run on localhost://8000 port.
+
+If you make changes in the model related to database then you have to run 
+```text
+python manage.py makemigrations
+python manage.py migrate
+```
+again.
