@@ -1,0 +1,19 @@
+{% extends "subscriptions/base.html" %}
+{% block title %}Resume subscription{% endblock %}
+{% block content %}
+<section class="card form-card">
+    <h2>Resume {{ pause.subscription.customer.name }}'s delivery</h2>
+    <p class="muted">Paused since {{ pause.start_date }}. Pick the date delivery restarts.</p>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn">Resume delivery</button>
+    </form>
+</section>
+{% endblock %}

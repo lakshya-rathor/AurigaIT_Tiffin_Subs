@@ -1,0 +1,76 @@
+{% extends "subscriptions/base.html" %}
+{% block title %}Dashboard - Tiffin Manager{% endblock %}
+{% block content %}
+
+<section class="card lookup-card">
+    <h2>Find a customer</h2>
+    <form method="get" class="inline-form">
+        {{ lookup_form.phone }}
+        <button type="submit" class="btn">Search</button>
+    </form>
+    {% if found_customer %}
+        <p class="found-result">
+            Found: <a href="{% url 'subscriptions:customer_detail' found_customer.pk %}">{{ found_customer.name }} - {{ found_customer.phone }}</a>
+        </p>
+    {% endif %}
+</section>
+
+<section class="summary-grid">
+    <div class="stat-box active">
+        <span class="stat-number">{{ active|length }}</span>
+        <span class="stat-label">Active</span>
+    </div>
+    <div class="stat-box paused">
+        <span class="stat-number">{{ paused|length }}</span>
+        <span class="stat-label">Paused</span>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Active subscriptions</h2>
+    {% if active %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Customer</th><th>Phone</th><th>Plan</th><th>Since</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for sub in active %}
+            <tr>
+                <td>{{ sub.customer.name }}</td>
+                <td>{{ sub.customer.phone }}</td>
+                <td>{{ sub.plan.name }}</td>
+                <td>{{ sub.start_date }}</td>
+                <td><a href="{% url 'subscriptions:customer_detail' sub.customer.pk %}">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="empty">No active subscriptions.</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>Paused subscriptions</h2>
+    {% if paused %}
+    <table class="data-table">
+        <thead>
+            <tr><th>Customer</th><th>Phone</th><th>Plan</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for sub in paused %}
+            <tr>
+                <td>{{ sub.customer.name }}</td>
+                <td>{{ sub.customer.phone }}</td>
+                <td>{{ sub.plan.name }}</td>
+                <td><a href="{% url 'subscriptions:customer_detail' sub.customer.pk %}">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="empty">No one is currently paused.</p>
+    {% endif %}
+</section>
+
+{% endblock %}

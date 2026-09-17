@@ -1,0 +1,28 @@
+{% extends "subscriptions/base.html" %}
+{% block title %}Generate Bill{% endblock %}
+{% block content %}
+<section class="card form-card">
+    <h2>Bill for {{ subscription.customer.name }} - {{ subscription.plan.name }}</h2>
+    <p class="muted">Plan price: Rs.{{ subscription.plan.price_per_month }}/month. Pro-rated by delivered days.</p>
+
+    <form method="post" id="bill-form">
+        {% csrf_token %}
+        <div class="inline-form">
+            {{ form.month }}
+            {{ form.year }}
+            <button type="submit" class="btn">Calculate</button>
+        </div>
+    </form>
+
+    {% if result %}
+    <div class="bill-result">
+        <table class="data-table">
+            <tr><th>Total delivery days in month</th><td>{{ result.total_days }}</td></tr>
+            <tr><th>Days actually delivered</th><td>{{ result.delivered_days }}</td></tr>
+            <tr><th>Rate per day</th><td>Rs.{{ result.per_day_rate }}</td></tr>
+            <tr><th>Amount due</th><td class="amount">Rs.{{ result.amount }}</td></tr>
+        </table>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
