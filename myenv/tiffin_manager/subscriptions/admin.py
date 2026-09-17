@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, Plan, Subscription, Pause, Bill
+from .models import Customer, Plan, Subscription, Pause, Bill, Transfer, SimClock, OutboxNotification
 
 
 @admin.register(Customer)
@@ -33,5 +33,21 @@ class PauseAdmin(admin.ModelAdmin):
 
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
-    list_display = ("subscription", "month", "year", "total_days", "delivered_days", "amount")
+    list_display = ("subscription", "customer", "month", "year", "total_days", "delivered_days", "amount")
     list_filter = ("year", "month")
+
+
+@admin.register(Transfer)
+class TransferAdmin(admin.ModelAdmin):
+    list_display = ("subscription", "from_customer", "to_customer", "transfer_date")
+
+
+@admin.register(SimClock)
+class SimClockAdmin(admin.ModelAdmin):
+    list_display = ("current_date",)
+
+
+@admin.register(OutboxNotification)
+class OutboxNotificationAdmin(admin.ModelAdmin):
+    list_display = ("customer", "subscription", "delivery_date", "channel", "created_at")
+    list_filter = ("delivery_date", "channel")

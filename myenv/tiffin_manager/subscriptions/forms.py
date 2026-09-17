@@ -44,6 +44,14 @@ class ResumeForm(forms.Form):
     )
 
 
+class TransferForm(forms.Form):
+    to_customer = forms.ModelChoiceField(
+        queryset=Customer.objects.all(), label="Transfer to",
+        help_text="The plan and billing cycle carry over; only ownership changes.",
+    )
+    transfer_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+
+
 class PhoneLookupForm(forms.Form):
     phone = forms.CharField(
         max_length=16,

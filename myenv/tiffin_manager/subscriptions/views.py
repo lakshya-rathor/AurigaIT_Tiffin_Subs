@@ -5,9 +5,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .forms import (
-    BillMonthForm, CustomerForm, PauseForm, PhoneLookupForm, ResumeForm, SubscribeForm,
+    BillMonthForm, CustomerForm, PauseForm, PhoneLookupForm, ResumeForm, SubscribeForm, TransferForm,
 )
-from .models import Bill, Customer, Pause, Subscription
+from .models import Bill, Customer, Pause, SimClock, Subscription
 
 
 def dashboard(request):
@@ -103,6 +103,27 @@ def resume_subscription(request, pause_pk):
     return render(request, "subscriptions/resume_form.html", {"form": form, "pause": pause})
 
 
+def transfer_subscription_form(request, sub_pk):
+    """Owner-facing UI for T6: move a subscription to a new customer
+    mid-cycle. Plan and cycle carry over; billing splits by who was
+    served (see calculate_bill_split / GET .../bill-split)."""
+    subscription = get_object_or_404(Subscription, pk=sub_pk)
+    if request.method == "POST":
+        form = TransferForm(request.POST)
+        if form.is_valid():
+            to_customer = form.cleaned_data["to_customer"]
+            transfer_date = form.cleaned_data["transfer_date"]
+            try:
+                subscription.transfer_to(to_customer, transfer_date)
+                messages.success(request, f"Subscription transferred to {to_customer.name}.")
+                return redirect("subscriptions:customer_detail", pk=to_customer.pk)
+            except ValueError as e:
+                messages.error(request, str(e))
+    else:
+        form = TransferForm(initial={"transfer_date": SimClock.today()})
+    return render(request, "subscriptions/transfer_form.html", {"form": form, "subscription": subscription})
+
+
 def generate_bill(request, sub_pk):
     """Calculate (and store) the pro-rated bill for a chosen month."""
     subscription = get_object_or_404(Subscription, pk=sub_pk)
@@ -116,7 +137,7 @@ def generate_bill(request, sub_pk):
             month = int(form.cleaned_data["month"])
             calc = subscription.calculate_bill(year, month)
             bill, _created = Bill.objects.update_or_create(
-                subscription=subscription, year=year, month=month,
+                subscription=subscription, year=year, month=month, customer=subscription.customer,
                 defaults={
                     "total_days": calc["total_days"],
                     "delivered_days": calc["delivered_days"],

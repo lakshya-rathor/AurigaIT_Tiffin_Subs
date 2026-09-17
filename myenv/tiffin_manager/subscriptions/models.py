@@ -114,13 +114,50 @@ class Subscription(models.Model):
         paused = self.paused_dates_in_month(year, month)
         return [d for d in all_days if d not in paused]
 
-    def is_currently_paused(self) -> bool:
-        today = timezone.localdate()
+    def is_paused_on(self, d: date) -> bool:
+        """Was this subscription paused on a specific date (not just today)?"""
         return self.pauses.filter(
-            start_date__lte=today
+            start_date__lte=d
         ).filter(
-            models.Q(end_date__isnull=True) | models.Q(end_date__gte=today)
+            models.Q(end_date__isnull=True) | models.Q(end_date__gte=d)
         ).exists()
+
+    def is_currently_paused(self) -> bool:
+        return self.is_paused_on(timezone.localdate())
+
+    # ---------- ownership / transfer (T6) ----------
+
+    def owner_on(self, d: date):
+        """Which customer this subscription was serving on date d,
+        accounting for any Transfer records. self.customer always holds
+        the *current* owner (kept in sync by transfer_to)."""
+        transfers = list(self.transfers.order_by("transfer_date"))
+        if not transfers:
+            return self.customer
+        owner = transfers[0].from_customer
+        for t in transfers:
+            if d >= t.transfer_date:
+                owner = t.to_customer
+            else:
+                break
+        return owner
+
+    def transfer_to(self, new_customer, transfer_date: date):
+        """Move this subscription to a new customer from transfer_date
+        onward. Plan and billing cycle (start_date/end_date) are untouched;
+        only who is being served changes. Returns the Transfer record."""
+        current_owner = self.owner_on(transfer_date)
+        if current_owner.pk == new_customer.pk:
+            raise ValueError("Subscription is already owned by this customer.")
+        transfer = Transfer.objects.create(
+            subscription=self,
+            from_customer=current_owner,
+            to_customer=new_customer,
+            transfer_date=transfer_date,
+        )
+        self.customer = new_customer
+        self.save(update_fields=["customer"])
+        return transfer
 
     def current_display_status(self):
         if self.status == self.STATUS_CANCELLED:
@@ -157,6 +194,34 @@ class Subscription(models.Model):
             "amount": amount,
         }
 
+    def calculate_bill_split(self, year: int, month: int):
+        """Same pro-ration as calculate_bill, but split by whoever was
+        actually served each day — needed when a Transfer (T6) falls
+        inside the billing month."""
+        from collections import defaultdict
+
+        total_days = self.delivery_days_in_month(year, month)
+        delivered_days = self.delivered_days_in_month(year, month)
+        total_count = len(total_days)
+
+        if total_count == 0:
+            per_day = Decimal("0.00")
+        else:
+            per_day = (self.plan.price_per_month / Decimal(total_count)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+        per_customer_days = defaultdict(int)
+        for d in delivered_days:
+            per_customer_days[self.owner_on(d)] += 1
+
+        breakdown = []
+        for customer, count in per_customer_days.items():
+            amount = (per_day * count).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            breakdown.append({"customer": customer, "delivered_days": count, "amount": amount})
+
+        return {"total_days": total_count, "per_day_rate": per_day, "breakdown": breakdown}
+
 
 class Pause(models.Model):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="pauses")
@@ -179,8 +244,30 @@ class Pause(models.Model):
         self.save()
 
 
+class Transfer(models.Model):
+    """Records a mid-cycle ownership change (T6). The Subscription itself
+    (plan, start_date, end_date) is untouched — only who is being served
+    changes, from transfer_date onward."""
+    subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="transfers")
+    from_customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="transfers_out")
+    to_customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="transfers_in")
+    transfer_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-transfer_date"]
+
+    def __str__(self):
+        return f"{self.subscription_id}: {self.from_customer} -> {self.to_customer} on {self.transfer_date}"
+
+
 class Bill(models.Model):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="bills")
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="bills",
+        null=True, blank=True,
+        help_text="Who this particular bill belongs to — matters when a subscription was transferred mid-month."
+    )
     year = models.IntegerField()
     month = models.IntegerField()
     total_days = models.IntegerField()
@@ -190,8 +277,56 @@ class Bill(models.Model):
     generated_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("subscription", "year", "month")
+        unique_together = ("subscription", "year", "month", "customer")
         ordering = ["-year", "-month"]
 
     def __str__(self):
-        return f"{self.subscription.customer.name} - {self.month}/{self.year}: Rs.{self.amount}"
+        who = self.customer.name if self.customer else self.subscription.customer.name
+        return f"{who} - {self.month}/{self.year}: Rs.{self.amount}"
+
+
+class SimClock(models.Model):
+    """Singleton row holding the app's virtual 'today'. Grading/tests drive
+    time forward deterministically via POST /clock instead of depending on
+    the real wall clock."""
+    current_date = models.DateField(default=timezone.localdate)
+
+    @classmethod
+    def today(cls) -> date:
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj.current_date
+
+    @classmethod
+    def set_today(cls, new_date: date) -> date:
+        obj, _ = cls.objects.get_or_create(pk=1)
+        obj.current_date = new_date
+        obj.save()
+        return obj.current_date
+
+    @classmethod
+    def advance(cls, days: int = 1) -> date:
+        obj, _ = cls.objects.get_or_create(pk=1)
+        obj.current_date = obj.current_date + timedelta(days=days)
+        obj.save()
+        return obj.current_date
+
+    def __str__(self):
+        return f"Clock: {self.current_date}"
+
+
+class OutboxNotification(models.Model):
+    """Stand-in for a real notification provider (SMS/push/email). Rather
+    than actually sending, T1 writes here so 'who got notified' is
+    observable via GET /outbox."""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="notifications")
+    subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="notifications")
+    channel = models.CharField(max_length=20, default="sms")
+    message = models.TextField()
+    delivery_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"[{self.delivery_date}] -> {self.customer.phone}: {self.message[:40]}"

@@ -20,8 +20,27 @@
                 <a href="{% url 'subscriptions:pause' sub.pk %}" class="btn btn-small btn-warn">Pause</a>
             {% endif %}
             <a href="{% url 'subscriptions:generate_bill' sub.pk %}" class="btn btn-small">Generate Bill</a>
+            <a href="{% url 'subscriptions:transfer_form' sub.pk %}" class="btn btn-small">Transfer</a>
         </div>
     </div>
+
+    {% if sub.transfers.all %}
+    <details>
+        <summary>Transfer history ({{ sub.transfers.count }})</summary>
+        <table class="data-table">
+            <thead><tr><th>Date</th><th>From</th><th>To</th></tr></thead>
+            <tbody>
+            {% for t in sub.transfers.all %}
+                <tr>
+                    <td>{{ t.transfer_date }}</td>
+                    <td>{{ t.from_customer.name }}</td>
+                    <td>{{ t.to_customer.name }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </details>
+    {% endif %}
 
     <details>
         <summary>Pause history ({{ sub.pauses.count }})</summary>
