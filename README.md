@@ -53,3 +53,8 @@ AurigaIT_Tiffin_Subs/
 └── ...
 
 
+Requirements
+Python 3.x
+pip
+Django
+Git
