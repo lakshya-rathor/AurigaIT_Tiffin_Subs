@@ -51,10 +51,37 @@ AurigaIT_Tiffin_Subs/
 │   └── ...
 │
 └── ...
-
+```
 
 Requirements
 Python 3.x
 pip
 Django
 Git
+
+# Setup 
+Run each line one by one
+```text
+git clone https://github.com/lakshya-rathor/AurigaIT_Tiffin_Subs.git
+cd AurigaIT_Tiffin_Subs
+python -m venv myenv
+myenv\Scripts\activate
+pip install django
+pip install -r requirements.txt
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+```
+```text
+python manage.py runserver
+```
+Website will be run on localhost://8000 port.
+
+If you make changes in the model related to database then you have to run 
+```text
+python manage.py makemigrations
+python manage.py migrate
+```
+again.
+
+
